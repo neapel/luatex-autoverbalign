@@ -1,0 +1,579 @@
+% \iffalse meta-comment
+%
+% Copyright (C) 2015 by Pascal Germroth <pascal@germroth.name>
+% ------------------------------------------------------------
+%
+% This file may be distributed and/or modified under the
+% conditions of the LaTeX Project Public License, either version 1.2
+% of this license or (at your option) any later version.
+% The latest version of this license is in:
+%
+%    http://www.latex-project.org/lppl.txt
+%
+% and version 1.2 or later is part of all distributions of LaTeX 
+% version 1999/12/01 or later.
+%
+% \fi
+%
+% \iffalse
+%<*driver>
+\ProvidesFile{autoverbalign.dtx}
+%</driver>
+%<package>\NeedsTeXFormat{LaTeX2e}[1999/12/01]
+%<package>\ProvidesPackage{autoverbalign}
+%<*package>
+    [2015/03/16 v1.0 automatic tabbing-like environment]
+%</package>
+%
+%<*driver>
+\documentclass{ltxdoc}
+\usepackage{autoverbalign}
+\usepackage{color}
+\usepackage{showexpl}
+\usepackage{listings}
+%\usepackage{lua-visual-debug}
+\EnableCrossrefs
+\CodelineIndex
+\RecordChanges
+
+\begin{document}
+\changes{v1.0}{2015/03/16}{Initial version}
+
+\GetFileInfo{autoverbalign.dtx}
+
+\DoNotIndex{\newcommand,\newenvironment}
+
+\title{The \textsf{autoverbalign} package\thanks{This document
+  corresponds to \textsf{autoverbalign}~\fileversion, dated \filedate.}}
+\author{Pascal Germroth \\ \texttt{pascal@germroth.name}}
+
+\maketitle
+
+\section{Introduction}
+
+
+\lstdefinelanguage{Haskell}{
+	sensitive=true,
+	morestring=[b]",
+	morecomment=[l]{--},
+	morecomment=[s]{\{-}{-\}},
+	% haskell keywords
+	morekeywords={as,case,of,class,data,family,default,deriving,do,forall,
+		foreign,hiding,if,then,else,import,infix,infixl,infixr,instance,
+		let,in,mdo,module,newtype,proc,qualified,rec,type,where},
+	literate=
+		{\\}{$\lambda$}1
+		{<-}{$\leftarrow$}2
+		{->}{$\rightarrow$}2
+		{=>}{$\Rightarrow$}2 
+		{>=}{$\geq$}2
+		{<=}{$\leq$}2
+		{\ .\ }{ $\circ$ }2
+		{>>}{$\gg$}2
+		{>>=}{$\gg\!\!=$}3
+		{|}{$\mid$}1
+		{...}{$\ldots$}3
+}
+
+\alignednewenvironment{code}{\lstset{language=Haskell}\scriptsize}{}
+
+\lstset{
+	language=Haskell,
+	basicstyle=,
+	columns=fullflexible,
+	stringstyle=\ttfamily,
+	keywordstyle={\bfseries},
+	showstringspaces=false,
+	keepspaces=true,
+}
+
+
+\begin{code}
+class (Serialize header, Serialize (Request message)
+      , Random messageID, Ord messageID) => UdpRpcClient
+   client    messageID header message
+ | client -> messageID header message where
+  -- accessors
+  getSlots     :: client -> TVar (M.Map messageID Slot)
+  getSocket    :: client -> Socket
+\end{code}
+
+\begin{code}
+class (Serialize header, Serialize (Request message)
+      , Random messageID, Ord messageID)
+ => UdpRpcClient client    messageID header message
+ |               client -> messageID header message where
+  -- accessors
+  getSlots     :: client -> TVar (M.Map messageID Slot)
+  getSocket    :: client -> Socket
+  getMessageID :: client -> header -> messageID
+  makeHeader   :: client -> messageID -> header
+  -- main request handler
+  handleRequest :: client -> message a -> IO a
+\end{code}
+
+case\begin{code}of
+f (Left x)  = x
+f (Right x) | x -> 1    = x
+            | otherwise = () kjkjk kk
+somethingels = ssdflkjsdfklsjdfklsjdf
+g x         = case x of Just a  -> do foo
+                                      barsdfkljsdflksjdflkjsdf
+                                      if vvx then y
+                                             else z
+                                      k
+                        Nothing -> do meh
+                                      case ork of Bork  -> ()
+                                                  Merrr -> ()
+                                      meh
+                        Stuff   -> meh
+case\end{code}of
+
+moo
+
+
+\section{Usage}
+
+\DocInput{autoverbalign.dtx}
+\PrintChanges
+\PrintIndex
+\end{document}
+%</driver>
+% \fi
+%
+% \CheckSum{0}
+%
+% \CharacterTable
+%  {Upper-case    \A\B\C\D\E\F\G\H\I\J\K\L\M\N\O\P\Q\R\S\T\U\V\W\X\Y\Z
+%   Lower-case    \a\b\c\d\e\f\g\h\i\j\k\l\m\n\o\p\q\r\s\t\u\v\w\x\y\z
+%   Digits        \0\1\2\3\4\5\6\7\8\9
+%   Exclamation   \!     Double quote  \"     Hash (number) \#
+%   Dollar        \$     Percent       \%     Ampersand     \&
+%   Acute accent  \'     Left paren    \(     Right paren   \)
+%   Asterisk      \*     Plus          \+     Comma         \,
+%   Minus         \-     Point         \.     Solidus       \/
+%   Colon         \:     Semicolon     \;     Less than     \<
+%   Equals        \=     Greater than  \>     Question mark \?
+%   Commercial at \@     Left bracket  \[     Backslash     \\
+%   Right bracket \]     Circumflex    \^     Underscore    \_
+%   Grave accent  \`     Left brace    \{     Vertical bar  \|
+%   Right brace   \}     Tilde         \~}
+%
+%
+% \StopEventually{}
+% \section{Implementation}
+%
+%    \begin{macrocode}
+%<*package>
+\RequirePackage{listings}
+\RequirePackage{luacode}
+\directlua{dofile "autoverbalign.lua"}
+
+
+\newcommand{\alignednewenvironment}[3]{%
+  \newenvironment{#1}{\directlua{begin_aligned_code('#1')}}{%
+    \begingroup%
+    \lst@EveryDisplay
+    \par\penalty-50
+    \vspace\lst@aboveskip
+    \noindent
+    #2%
+    \directlua{end_aligned_code()}%
+    #3%
+    \par\removelastskip
+    %\par\penalty-50
+    \vspace\lst@belowskip
+    \endgroup%
+  }%
+}
+
+\newcommand{\@centerinside}[2]{%
+  \setbox0\hbox{#1}%
+  \makebox[\wd0][c]{#2}%
+}
+
+\newcommand{\haskellDollar}{\@centerinside{=}{\$}}
+\newcommand{\haskellPipe}{\@centerinside{=}{$\mid$}}
+\newcommand{\haskellBind}{\ensuremath{\gg\!\!=}}
+\newcommand{\haskellFmap}{\ensuremath{<\!\!\$\!\!>}}
+\newcommand{\haskellSeq}{\ensuremath{<\!\!*\!\!>}}
+
+
+\newcommand{\haskellIdentifier}[1]{\textit{#1}}
+\newcommand{\haskellKeyword}[1]{\textbf{#1}}
+\newcommand{\haskellType}[1]{#1}
+%</package>
+%    \end{macrocode}
+%
+%
+% In the Lua code, we collect the saved cell boxes into into a list of rows,
+% measure them and then create a linked node list which we return to the document.
+%    \begin{macrocode}
+%<*lua>
+require('lualibs')
+
+local environment_name = nil
+local code_lines = {}
+
+-- local debug_show_chunks = true
+-- local debug_show_tree = true
+-- local debug_table_line = true
+-- local debug_indent = true
+-- local use_own_highlighter = true
+
+-- add the line to the code lines
+local function readbuf(input)
+  local endmark = string.format('\\end{%s}', environment_name)
+  local found, _ = input:find(endmark, 0, true)
+  local code = input
+  local ret = ''
+  if found then
+    code = input:sub(1, found - 1)
+    ret = input:sub(found)
+  end
+  if code:strip():len() > 0 then
+    table.insert(code_lines, {line = code})
+  end
+  return ret
+end
+
+
+-- find offsets of multiple-spaces 
+local function chunk_boundaries(input)
+  input.bounds = {}
+  local last = 1
+  while last do
+    _, last = input.line:find('%s%s+', last)
+    if last then input.bounds[last] = true end
+  end
+end
+
+
+-- copy bounds to neighbors if they match a space,
+-- modifies the input.
+--
+-- This has some issues i.e.
+-- do some |stuff
+--    if a |then b
+--         |else c
+-- will align `stuff` as well as `then` and `else`. we don't care about syntax!
+-- use additional space to unalign things, as spaces will be stripped after alignment.
+-- 
+-- TODO: there could be a safe mode aligning only double-spaced?
+local function expand_chunks(inputs)
+  local function expand(bound, input)
+    if not input.bounds[bound] and input.line:sub(bound, bound) == ' ' then
+      input.bounds[bound] = true
+      return false
+    else
+      return true
+    end
+  end
+  for i = 1, #inputs do
+    for bound, _ in next, inputs[i].bounds do
+      -- extend downwards, align to space-word,
+      -- i.e. extend & to ! here:
+      -- case f of Just x   &-> foo
+      --           Nothing  !-> baz
+      -- or cut through space-space,
+      -- if everything to the left is space as well,
+      -- i.e. extend & to ! but not ? here:
+      -- case f of Just x  &-> do foo
+      --                   !      bar
+      --           _       ?   -> baz
+      for j = i + 1, #inputs do
+        local p = inputs[j]
+        if p.bounds[bound] then break end
+        if p.line:sub(bound, bound) ~= ' ' then break end
+        if p.line:sub(bound + 1, bound + 1) ~= ' ' then -- space-word
+          p.bounds[bound] = true
+        elseif p.line:sub(1, bound):strip():len() == 0 then -- space-space
+          p.bounds[bound] = true
+        else break end
+      end
+      -- extend upwards, align to space-word,
+      -- and space-space IF the alignment ends with space-word
+      -- i.e. extend & to ! and % here:
+      -- case f of %Just x -> do foo
+      --           !             bar
+      --           &Nothing -> baz
+      -- extend & to ! but not to ? here because % is not space-word.
+      -- do somes%tuff
+      --    m    ?  k
+      --    if a !then b
+      --         &else c
+      local collect = {}
+      for j = i - 1, 1, -1 do
+        local p = inputs[j]
+        if p.bounds[bound] then break end
+        if p.line:sub(bound, bound) ~= ' ' then break end
+        if p.line:sub(bound + 1, bound + 1) ~= ' ' then -- space-word
+          p.bounds[bound] = true
+          -- set space-space collected until here:
+          for k = 1, #collect do
+            inputs[collect[k]].bounds[bound] = true
+          end
+          collect = {}
+        elseif p.line:sub(1, bound):strip():len() == 0 then -- space-space
+          table.insert(collect, j)
+        else break end
+      end
+    end
+  end
+end
+
+
+-- break the line strings on the bounds,
+-- return list of lists of chunks for each line.
+local function break_chunks(inputs)
+  out = {}
+  for i = 1, #inputs do
+    local input = inputs[i]
+    local idxs = table.keys(input.bounds)
+    table.sort(idxs)
+    table.insert(idxs, 1, 0)
+    table.insert(idxs, input.line:len())
+    local chunks = {}
+    for j = 1, #idxs - 1 do
+      chunks[j] = input.line:sub(idxs[j] + 1, idxs[j + 1])
+    end
+    out[i] = chunks
+    if debug_show_chunks then
+      texio.write_nl(string.format('chunks: %s\n', table.concat(chunks, '&')))
+    end
+  end
+  return out
+end
+
+
+-- call fun with groups as determinded by key function
+local function group_by(list, key, fun)
+  if list and #list > 0 then
+    local group = {list[1]}
+    local current = key(list[1])
+    for i = 2, #list do
+      local k = key(list[i])
+      if k == current then
+        table.insert(group, list[i])
+      else
+        fun(current, group)
+        current = k
+        group = {list[i]}
+      end
+    end
+    fun(current, group)
+  end
+end
+
+
+-- call fun with a new list of items when the predicate returns true
+local function split_before(list, pred, fun)
+  if list and #list > 0 then
+    local row = {list[1]}
+    for i = 2, #list do
+      if pred(list[i]) then
+        fun(row)
+        row = {list[i]}
+      else
+        table.insert(row, list[i])
+      end
+    end
+    fun(row)
+  end
+end
+
+
+-- if the table only contains 1 cell, unwrap
+local function unwrap_table(t)
+  if t and #t == 1 and #t[1] == 1 then
+    return t[1][1]
+  else
+    return t
+  end
+end
+
+
+-- convert the chunk list into a tree of chunks
+local function make_tree(inputs)
+  -- group into a table.
+  local out_table = {}    
+  group_by(inputs, function(i) return i[1]:len() end,
+    function(_, group)
+      local group_table = {}
+      -- break into runs of rows where all but the first leftmost chunks
+      -- are whitespace, i.e. that we can align.
+      split_before(group, function(g) return g[1]:strip():len() > 0 end,
+        function(rows)
+          if #rows == 1 then -- single row.
+            table.insert(group_table, rows[1])
+          else -- multiple rows, put tail chunks in sub-table
+            local left = rows[1][1]
+            -- others are empty (and same length), remove and recurse
+            for i = 1, #rows do table.remove(rows[i], 1) end
+            table.insert(group_table, {left, make_tree(rows)})
+          end
+        end)
+      -- each group is a row a table containing the lines.
+      table.insert(out_table, {unwrap_table(group_table)})
+    end)
+  return unwrap_table(out_table)
+end
+
+
+-- pretty print the tree into a string for debugging
+local function dump_tree(rows, _indent)
+  local indent = _indent or ''
+  if type(rows) == "string" then
+    return string.format('%s%q\n', indent, rows)
+  else
+    local s = ''
+    local width = 1
+    local indent2 = indent .. '  '
+    local indent3 = indent2 .. '  '
+    for i = 1, #rows do
+      local row = rows[i]
+      if #row > width then width = #row end
+      local s_row = ''
+      for j = 1, #row do
+        s_row = s_row .. dump_tree(row[j], indent3)
+      end
+      s = s .. string.format('%srow{\n%s%s}\n', indent2, s_row, indent2)
+    end
+    s = string.format('%stable(%d){\n%s%s}\n', indent, width, s, indent)
+    return s
+  end
+end
+
+
+
+local lpeg = require('lpeg')
+local P, R, S, C, Cc, Ct = lpeg.P, lpeg.R, lpeg.S, lpeg.C, lpeg.Cc, lpeg.Ct
+local function token(id, patt) return Ct(Cc(id) * C(patt)) end
+
+local idsafe = R('AZ', 'az')
+
+local ident_term = token('\\haskellIdentifier{%s}', R('az') * idsafe ^ 0)
+
+local ident_type = token('\\haskellType{%s}', R('AZ') * idsafe ^ 0)
+
+local haskell_keywords = P 'as' + P 'case' + P 'of' + P 'class' + P 'data' +
+                         P 'family' + P 'default' + P 'deriving' + P 'do' +
+                         P 'forall' + P 'foreign' + P 'hiding' + P 'if' +
+                         P 'then' + P 'else' + P 'import' + P 'infix' +
+                         P 'infixl' + P 'infixr' + P 'instance' + P 'let' +
+                         P 'in' + P 'mdo' + P 'module' + P 'newtype' +
+                         P 'proc' + P 'qualified' + P 'rec' + P 'type' +
+                         P 'where'
+
+local keyword = token('\\haskellKeyword{%s}', haskell_keywords * -idsafe)
+
+local simple_string = token('\\verb|%s|', P '"' * (1 - P '"') ^ 0 * '"')
+
+local whitespace = token('%s', S('\r\n\f\t ')^1)
+
+local operators = token('$\\lambda$', P '\\') +
+                  token('{\\haskellFmap}', P '<$>') +
+                  token('{\\haskellSeq}', P '<*>') +
+                  token('{\\haskellDollar}', P '$') +
+                  token('{\\haskellPipe}', P '|') +
+                  token('{\\haskellBind}', P '>>=') +
+                  token('$\\rightarrow$', P '->') +
+                  token('$\\leftarrow$', P '<-') +
+                  token('$\\Rightarrow$', P '=>') +
+                  token('$>$', P '>') +
+                  token('$<$', P '<') +
+                  token(' $\\circ$ ', whitespace * P '.' * whitespace)
+
+local escape = token('\\%s', S '{}&#^_~%')
+local any_token = operators + whitespace + keyword +
+                  ident_type + ident_term + simple_string +
+                  escape + token('%s', 1)
+
+local table_of_tokens = Ct(any_token ^ 0)
+
+local function haskellToLatex(input)
+  local tokens = lpeg.match(table_of_tokens, input)
+  local output = {}
+  for n = 1, #tokens do
+    local t = tokens[n][1]
+    local s = tokens[n][2]
+    output[n] = string.format(t, s)
+  end
+  return table.concat(output)
+end
+
+
+local function verbatimize(str)
+  if use_own_highlighter then
+    return haskellToLatex(str)
+  else
+    return string.format('{\\lstinline@%s@}', str)
+  end
+end
+
+
+-- pretty print the tree to latex
+local function latex_tree(rows, maybe_indent)
+  if type(rows) == "string" then
+    local cell = rows:strip()
+    if maybe_indent and cell:len() == 0 then
+      local indent_width = '1em'
+      local cmd = '{\\hbox to %s{}}'
+      if debug_indent then cmd = '\\rule{%s}{3pt}' end
+      return string.format(cmd, indent_width)
+    else
+      return verbatimize(cell)
+    end
+  else
+    local width = 1
+    local s_rows = {}
+    for i = 1, #rows do
+      local row = rows[i]
+      if #row > width then width = #row end
+      local s_row = {}
+      for j = 1, #row do
+        s_row[j] = latex_tree(row[j], j == 1 and #rows == 1)
+      end
+      s_rows[i] = table.concat(s_row, '&')
+    end
+    local line = '@{ }'
+    if debug_table_line then line = '@{ }|@{}' end
+    return string.format(
+      '\\begin{tabular}[t]{@{}%s@{}}%s\\end{tabular}',
+      string.rep('l', width, line),
+      table.concat(s_rows, '\\\\'))
+  end
+end
+
+
+-- called from \begin{code}
+function begin_aligned_code(envname)
+  environment_name = envname
+  luatexbase.add_to_callback('process_input_buffer', readbuf, 'readbuf')
+end
+
+
+-- called from \end{code}
+function end_aligned_code()
+  luatexbase.remove_from_callback('process_input_buffer', 'readbuf')
+  for i = 1, #code_lines do
+    chunk_boundaries(code_lines[i])
+  end
+  expand_chunks(code_lines)
+  local chunks = break_chunks(code_lines)
+  local t = make_tree(chunks)
+  if debug_show_tree then 
+    texio.write_nl(dump_tree(t, 'tree: '))
+  end
+  
+  --table.print(t)
+  --print(dump_tree(t))
+  tex.print(latex_tree(t))
+  code_lines = {}
+end
+%</lua>
+%    \end{macrocode}
+%
+%
+% \Finale
+\endinput

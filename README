@@ -1,0 +1,2 @@
+Heuristically reconstructs manual tabbing from monospaced text, to allow
+displaying it in a proportional font while keeping arbitrary alignments.
