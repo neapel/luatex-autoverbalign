@@ -27,14 +27,74 @@
 %
 %<*driver>
 \documentclass{ltxdoc}
+\usepackage{autotabbing}
 \usepackage{autoverbalign}
-\usepackage{color}
+\usepackage{xcolor}
 \usepackage{showexpl}
 \usepackage{listings}
+%\usepackage{microtype}
 %\usepackage{lua-visual-debug}
 \EnableCrossrefs
 \CodelineIndex
 \RecordChanges
+
+%\usepackage[margin=1cm]{geometry}
+
+
+\lstdefinelanguage{Haskell}{
+  morekeywords={case,of,do,return},
+  morecomment=[l]{--},
+  morecomment=[s]{\{-}{-\}},
+  literate=
+    {->}{$\rightarrow\;$}2
+    {<-}{$\leftarrow\;$}2
+    {:}{$\;:\;$}1
+    {::}{$::\;$}2
+    {[]}{$[\,]$}2
+}
+\lstset{
+  language=Haskell,
+  columns=fullflexible,
+}
+
+\parindent=0pt
+
+\usepackage{newverbs}
+
+\newverbcommand{\mychunks}{%
+  \setbox\verbbox\hbox\bgroup\strut%
+}{%
+  \egroup%
+  {%
+    \setlength{\fboxsep}{-1pt}%
+    \hskip1pt%
+    \fcolorbox{red}{white}{\box\verbbox}%
+    \hskip1pt%
+  }%
+}
+
+\newcommand{\DescribeKey}[1]{\DescribeEnv{#1}}
+
+\makeatletter
+\newenvironment{dconsume}{\autoverbalign@consume}{\endautoverbalign@consume}
+
+\newcommand{\drunW}[2]{%
+  \vbox{%
+    \autoverbalignsetup{#1}%
+    \hbox{\fbox{\vbox{\autoverbalign@process}}}%
+    #2%
+  }%
+}
+\newcommand{\drunX}[1]{\drunW{#1}{}}
+
+\newcommand{\drunZ}[1]{%
+  \drunW{#1}{\par\vspace{5pt}\hbox{\strut}}}
+
+\newcommand{\drun}[1]{%
+  \drunW{#1}{%
+    \par\vspace{5pt}%
+    \hbox{\strut\scriptsize\texttt{\detokenize{#1}}}}}
+\makeatother
 
 \begin{document}
 \changes{v1.0}{2015/03/16}{Initial version}
@@ -51,88 +111,275 @@
 
 \section{Introduction}
 
+This package provides a \textsf{verbatim}-like environment which attempts to
+recognize manual alignment of the monospace input...
 
-\lstdefinelanguage{Haskell}{
-	sensitive=true,
-	morestring=[b]",
-	morecomment=[l]{--},
-	morecomment=[s]{\{-}{-\}},
-	% haskell keywords
-	morekeywords={as,case,of,class,data,family,default,deriving,do,forall,
-		foreign,hiding,if,then,else,import,infix,infixl,infixr,instance,
-		let,in,mdo,module,newtype,proc,qualified,rec,type,where},
-	literate=
-		{\\}{$\lambda$}1
-		{<-}{$\leftarrow$}2
-		{->}{$\rightarrow$}2
-		{=>}{$\Rightarrow$}2 
-		{>=}{$\geq$}2
-		{<=}{$\leq$}2
-		{\ .\ }{ $\circ$ }2
-		{>>}{$\gg$}2
-		{>>=}{$\gg\!\!=$}3
-		{|}{$\mid$}1
-		{...}{$\ldots$}3
-}
+\begin{dconsume}
+f :: (a -> IO b) -> [Maybe a] -> IO [b]                      -- type
+f    g              (x:xs)    = case x of Just y -> do       -- have val
+                                            z <- g x         -- process
+                 {-mmmmmmmmmm-}             zs <- f g xs     -- recurse
+                 {-llllllllll-}             return (z:zs)    -- done
+                                          Nothing -> f g xs  -- skip
+f    _              []        = []                           -- end
+\end{dconsume}
+\medskip
+\hfill
+{\small\drunX{indent=,chunk=\verb}}
+\hfill
+\medskip
 
-\alignednewenvironment{code}{\lstset{language=Haskell}\scriptsize}{}
+...and keeps this even when typesetting using a proportional font,
+here with additional processing through the \textsf{listings} package:
 
-\lstset{
-	language=Haskell,
-	basicstyle=,
-	columns=fullflexible,
-	stringstyle=\ttfamily,
-	keywordstyle={\bfseries},
-	showstringspaces=false,
-	keepspaces=true,
-}
+\medskip
+\hfill
+{\small\drunX{chunk=\lstinline}}
+\hfill
+\medskip
 
-
-\begin{code}
-class (Serialize header, Serialize (Request message)
-      , Random messageID, Ord messageID) => UdpRpcClient
-   client    messageID header message
- | client -> messageID header message where
-  -- accessors
-  getSlots     :: client -> TVar (M.Map messageID Slot)
-  getSocket    :: client -> Socket
-\end{code}
-
-\begin{code}
-class (Serialize header, Serialize (Request message)
-      , Random messageID, Ord messageID)
- => UdpRpcClient client    messageID header message
- |               client -> messageID header message where
-  -- accessors
-  getSlots     :: client -> TVar (M.Map messageID Slot)
-  getSocket    :: client -> Socket
-  getMessageID :: client -> header -> messageID
-  makeHeader   :: client -> messageID -> header
-  -- main request handler
-  handleRequest :: client -> message a -> IO a
-\end{code}
-
-case\begin{code}of
-f (Left x)  = x
-f (Right x) | x -> 1    = x
-            | otherwise = () kjkjk kk
-somethingels = ssdflkjsdfklsjdfklsjdf
-g x         = case x of Just a  -> do foo
-                                      barsdfkljsdflksjdflkjsdf
-                                      if vvx then y
-                                             else z
-                                      k
-                        Nothing -> do meh
-                                      case ork of Bork  -> ()
-                                                  Merrr -> ()
-                                      meh
-                        Stuff   -> meh
-case\end{code}of
-
-moo
-
+Originally written for pretty-printing Haskell-like code without an external
+preprocessor, it can be useful for any occasion where no cell-wise formatting
+is required but inserting |&|s would be annoying.
 
 \section{Usage}
+
+The package is loaded as |\usepackage|\oarg{kvargs}|{autoverbalign}|.
+It inherits document class options like |draft|.
+
+\DescribeMacro{\autoverbalignsetup}
+In the document options can also be set using |\autoverbalignsetup|\marg{kvargs}.
+
+\DescribeEnv{autoverbalign}
+This is the main verbatim environment.
+If you don't want to set options but the content starts with |[|,
+use empty~|[]| to prevent it from trying to parse the entire content
+as \meta{kvargs}.
+
+\medskip
+\qquad\vbox{
+  |\begin{autoverbalign}|\oarg{kvargs}\\
+  \meta{content}\\
+  |\end{autoverbalign}|
+}\medskip
+
+\DescribeMacro{\newautoverbalign}
+You can define custom versions using
+|\newautoverbalign|\oarg{kvargs}\marg{name}.
+
+\medskip\qquad\vbox{
+  |\begin|\marg{name}\oarg{kvargs}\\
+  \meta{content}\\
+  |\end|\marg{name}
+}\medskip
+
+
+\DescribeKey{chunk}
+The environment acts like (and is based on) the |verbatim| environment from
+the \textsf{verbatim} package. It splits the text contained into \emph{chunks}
+delimited by \emph{tabs} which are inferred from the whitespace in the code.
+It puts the chunks in a \textsf{autotabbing} environment for alignment, wrapped
+inside a |\verb|-like command, i.e. |\cmd|\meta{char}\meta{content}\meta{char}.
+The character is chosen automatically as one not contained in the content, and
+never |{|. By default we use |\verb|, but it is recommended to set a custom
+command using |chunk=|\meta{code} for proportional typesetting.
+
+\bigskip
+\begin{dconsume}
+do something
+   return 1
+\end{dconsume}
+\hfill
+\drunZ{indent=,chunk=\verb*}%
+\hfill
+\drun{chunk=\lstinline}%
+\hfill
+\drun{chunk=\collectverb{\rmfamily}}%
+\hfill
+\bigskip
+
+\subsection{Alignment}
+
+\autoverbalignsetup{draft,chunk=\verb*}
+The environment interprets \emph{two} or more spaces before a nonspace as an
+explicit tabstop, and attempts to group and align chunks of neighboring text
+space at the same column (here marked red), which we call \emph{explicit tabs}
+
+\bigskip
+\begin{dconsume}
+m m m  m m m
+n n n  n n n
+l l l  l l l
+\end{dconsume}
+\hfill
+\drun{chunk=\verb*}%
+\hfill
+\drun{chunk=\lstinline}%
+\hfill
+\bigskip
+
+\DescribeKey{implicitbefore}
+\DescribeKey{implicitafter}
+There is a heuristic for \emph{implicit tabs} (here marked blue) too.
+Starting from an explicit tab we search for spaces in the same column in
+neighboring lines, stopping when hitting a wall.
+This can be toggled with using |implicitbefore=|\meta{bool}
+and |implicitafter=|\meta{bool}.
+They are active by default.
+
+\bigskip
+\begin{dconsume}
+nil before
+unaligned
+two before
+one before
+x   explicit
+\end{dconsume}
+\hfill
+\drun{implicitbefore=false}%
+\hfill
+\drun{implicitbefore=true}%
+\begin{dconsume}
+x   explicit
+one after
+two after
+unaligned
+nil after
+\end{dconsume}
+\hfill
+\drun{implicitafter=false}%
+\hfill
+\drun{implicitafter=true}%
+\hfill
+\bigskip
+
+\autoverbalignsetup{final, chunk=\verb*}
+\DescribeKey{indent}
+By default we replace chunks consisting only of spaces with |\quad|.
+You can set |indent=|\meta{code} instead, or set it to
+empty |indent=,| to disable the replacement entirely.
+\newcommand{\myindent}{{\color{red}$\rightarrow\,$}}
+
+\bigskip
+\begin{dconsume}
+begin
+       print
+end
+\end{dconsume}
+\hfill
+\drun{}%
+\hfill
+\drun{indent=\myindent}%
+\hfill
+\drun{indent=}%
+\hfill
+\drun{indent=, chunk=\lstinline}%
+\hfill
+\bigskip
+
+In the example below, code is aligned
+explicitly after the |begin|, but the |end| is indented by four spaces.
+We insert indentations into the second column to ensure the |end| is never
+on the same level as code appearing deeper, however this creates an ugly space
+between |beg sub|.
+Without implicit tabs the hierarchy is lost.
+
+\bigskip
+\begin{dconsume}
+beg  sub
+     beg  foo
+          bar
+       end
+     beg  baz
+          qux
+       end
+  end
+\end{dconsume}
+\hfill
+\drunX{indent=, draft}%
+\hfill
+\drunX{indent=\myindent, chunk=\lstinline}%
+\hfill
+\drunX{implicitbefore=false, implicitafter=false, indent=, draft}%
+\hfill
+\drunX{implicitbefore=false, implicitafter=false, chunk=\lstinline, indent=\myindent}%
+\hfill
+\bigskip
+
+\DescribeKey{global}
+\DescribeKey{local}
+This package uses \textsf{autotabbing} which aligns all tabs with the same ID.
+The default, |global| alignment identifies the tabs by their column, aligning
+all tabs originating in the same column across the entire block.
+For longer blocks, this may not be desired.
+Therefore |local| alignment only groups consecutive tabs in the same column
+under the same ID.
+
+\bigskip
+\begin{dconsume}
+f mmmmmm =       q
+f     l  = mmmmm q
+      l
+g lll ll =       q
+g        = ll l  q
+somethinglong l
+h nnnnnn =    l  q
+h        = l l   q
+somethinglong    q
+g llllll =       q
+g        =       q
+\end{dconsume}
+{\autotabbingsetup{draft}
+\autoverbalignsetup{chunk=\lstinline}
+\hfill
+\drun{global}
+\hfill
+\drun{local}
+}\hfill
+\bigskip
+
+\subsection{Hooks}
+
+There are a number of hooks (initially empty) which can be used for customisation:
+\DescribeKey{beforeblock}
+\DescribeKey{afterblock}
+These are executed just before and after the \textsf{autotabbing} environment,
+in the same group.
+
+\begin{dconsume}
+do some  code
+   return
+\end{dconsume}
+\bigskip\hfill\drun{%
+chunk=\lstinline,
+beforeblock=\lstset{language=Haskell},
+afterblock=\textsf{end code}
+}\hfill\bigskip
+
+\DescribeKey{beforeline}
+\DescribeKey{afterline}
+These are executed at the start and end of each line, delimited by a tab each.
+All lines are contained in the same group.
+
+\newcounter{myLC}
+\bigskip\hfill\drun{%
+beforeline={\stepcounter{myLC}\Roman{myLC}},
+afterline={\arabic{myLC}}
+}\hfill\bigskip
+
+
+
+\DescribeKey{beforechunk}
+\DescribeKey{afterchunk}
+These are executed before and after each chunk, not including indents.
+They are contained in the same group as the content, one group per chunk.
+
+\bigskip\hfill\drun{%
+beforechunk={(},
+afterchunk={)}
+}\hfill\bigskip
+
+
 
 \DocInput{autoverbalign.dtx}
 \PrintChanges
@@ -163,413 +410,358 @@ moo
 % \StopEventually{}
 % \section{Implementation}
 %
+% Load the Lua portion of the package
 %    \begin{macrocode}
 %<*package>
-\RequirePackage{listings}
-\RequirePackage{luacode}
-\directlua{dofile "autoverbalign.lua"}
-
-
-\newcommand{\alignednewenvironment}[3]{%
-  \newenvironment{#1}{\directlua{begin_aligned_code('#1')}}{%
-    \begingroup%
-    \lst@EveryDisplay
-    \par\penalty-50
-    \vspace\lst@aboveskip
-    \noindent
-    #2%
-    \directlua{end_aligned_code()}%
-    #3%
-    \par\removelastskip
-    %\par\penalty-50
-    \vspace\lst@belowskip
-    \endgroup%
-  }%
+\RequirePackage{luatexbase}
+\RequireLuaModule{autoverbalign}
+%    \end{macrocode}
+% Use \textsf{autotabbing} for actual alignment work.
+%    \begin{macrocode}
+\RequirePackage{autotabbing}
+%    \end{macrocode}
+% Define the options
+%    \begin{macrocode}
+\RequirePackage{kvoptions}
+\SetupKeyvalOptions{family=autoverbalign, prefix=autoverbalign}
+\DeclareStringOption[\verb]{chunk}
+\DeclareStringOption[\quad]{indent}
+\DeclareBoolOption[true]{implicitbefore}
+\DeclareBoolOption[true]{implicitafter}
+\DeclareBoolOption[true]{global}
+\DeclareComplementaryOption{local}{global}
+\DeclareBoolOption{draft}
+\DeclareComplementaryOption{final}{draft}
+\DeclareStringOption{beforeblock}
+\DeclareStringOption{afterblock}
+\DeclareStringOption{beforeline}
+\DeclareStringOption{afterline}
+\DeclareStringOption{beforechunk}
+\DeclareStringOption{afterchunk}
+\ProcessKeyvalOptions{autoverbalign}
+%    \end{macrocode}
+% \begin{macro}{\autoverbalignsetup}
+% Set our options
+%    \begin{macrocode}
+\newcommand*{\autoverbalignsetup}{\setkeys{autoverbalign}}
+%    \end{macrocode}
+% \end{macro}
+% \begin{macro}{\autoverbalign@bool}
+% Export a boolean option to Lua (there has to be a better way?!)
+%    \begin{macrocode}
+\newcommand{\autoverbalign@bool}[1]{%
+  #1 = \csname ifautoverbalign#1\endcsname true\else false\fi}
+%    \end{macrocode}
+% \end{macro}
+% \begin{macro}{\autoverbalign@isdef}
+% Export |true| to Lua if the option is not empty.
+%    \begin{macrocode}
+\newcommand{\autoverbalign@isdef}[1]{%
+  #1 = \expandafter\ifx\csname autoverbalign#1\endcsname\empty%
+    false\else true\fi}
+%    \end{macrocode}
+% \end{macro}
+% \begin{macro}{\autoverbalign@process}
+% Process previously ingested lines.
+%    \begin{macrocode}
+\newcommand{\autoverbalign@process}{%
+  \begingroup%
+  \autoverbalignbeforeblock%
+  \directlua{autoverbalign.process({
+    \autoverbalign@bool{global},
+    \autoverbalign@bool{implicitbefore},
+    \autoverbalign@bool{implicitafter},
+    \autoverbalign@isdef{indent},
+    \autoverbalign@isdef{beforeline},
+    \autoverbalign@isdef{afterline},
+  })}%
+  \autoverbalignafterblock%
+  \endgroup%
 }
-
-\newcommand{\@centerinside}[2]{%
-  \setbox0\hbox{#1}%
-  \makebox[\wd0][c]{#2}%
+%    \end{macrocode}
+% \end{macro}
+% \begin{environment}{autoverbalign@consume}
+% A verbatim environment to pass raw lines to our Lua code.
+%    \begin{macrocode}
+\RequirePackage{verbatim}
+\newenvironment{autoverbalign@consume}{%
+  \begingroup%
+  \directlua{autoverbalign.lines = {}}%
+  \let\do\@makeother\dospecials\catcode`\^^M\active%
+  \def\verbatim@processline{\directlua{autoverbalign.line()}}%
+  \verbatim@start%
+}{%
+  \endgroup%
 }
-
-\newcommand{\haskellDollar}{\@centerinside{=}{\$}}
-\newcommand{\haskellPipe}{\@centerinside{=}{$\mid$}}
-\newcommand{\haskellBind}{\ensuremath{\gg\!\!=}}
-\newcommand{\haskellFmap}{\ensuremath{<\!\!\$\!\!>}}
-\newcommand{\haskellSeq}{\ensuremath{<\!\!*\!\!>}}
-
-
-\newcommand{\haskellIdentifier}[1]{\textit{#1}}
-\newcommand{\haskellKeyword}[1]{\textbf{#1}}
-\newcommand{\haskellType}[1]{#1}
+%    \end{macrocode}
+% \end{environment}
+% \begin{environment}{autoverbalign}
+% Our main environment: set the options, consume input and process it.
+%    \begin{macrocode}
+\newenvironment{autoverbalign}[1][]{%
+  \autoverbalignsetup{#1}
+  \autoverbalign@consume%
+}{%
+  \endautoverbalign@consume%
+  \autoverbalign@process%
+}
+%    \end{macrocode}
+% \end{environment}
+% \begin{macro}{\newautoverbalign}
+% Create a new environment which first sets the options passed at creation
+% on every use.
+%    \begin{macrocode}
+\newcommand*{\newautoverbalign}[2][]{
+  \newenvironment{#2}{%
+    \autoverbalignsetup{#1}%
+    \autoverbalign%
+  }{%
+    \endautoverbalign%
+  }
+}
+%    \end{macrocode}
+% \end{macro}
+% \begin{macro}{\autoverbaligntab}
+% Create a named tabstop (first arg), of a certain type (second arg),
+% this is only used to display a red or blue bar in |draft| mode.
+%    \begin{macrocode}
+\newcommand*{\autoverbaligntab}[2]{%
+  \autotabbing@cell@next[#1]%
+  \ifautoverbaligndraft%
+    \raisebox{0pt}[0pt][0pt]{\makebox[0pt][r]{%
+      \ifcase #2%explicit
+        \color{red}%
+      \or%implicit
+        \color{blue}%
+      \fi%
+      \rule[-.3\baselineskip]{1pt}{\baselineskip}%
+      \hspace{0.2em}%
+    }}%
+  \fi%
+}
 %</package>
 %    \end{macrocode}
+% \end{macro}
 %
-%
-% In the Lua code, we collect the saved cell boxes into into a list of rows,
-% measure them and then create a linked node list which we return to the document.
+% The Lua portion of the package.
 %    \begin{macrocode}
 %<*lua>
+local err, warn, info, log = luatexbase.provides_module({name = 'autoverbalign'})
+autoverbalign = autoverbalign or {}
+local opts
+%    \end{macrocode}
+% We use |string.strip| and |table.keys| from \textsf{lualibs}.
+%    \begin{macrocode}
 require('lualibs')
-
-local environment_name = nil
-local code_lines = {}
-
--- local debug_show_chunks = true
--- local debug_show_tree = true
--- local debug_table_line = true
--- local debug_indent = true
--- local use_own_highlighter = true
-
--- add the line to the code lines
-local function readbuf(input)
-  local endmark = string.format('\\end{%s}', environment_name)
-  local found, _ = input:find(endmark, 0, true)
-  local code = input
-  local ret = ''
-  if found then
-    code = input:sub(1, found - 1)
-    ret = input:sub(found)
-  end
-  if code:strip():len() > 0 then
-    table.insert(code_lines, {line = code})
-  end
-  return ret
+%    \end{macrocode}
+% Receive a line from the register used by \textsf{verbatim}, store it in the table.
+%    \begin{macrocode}
+function autoverbalign.line()
+  local line = tex.toks['verbatim@line']
+  table.insert(autoverbalign.lines, {content = line})
 end
-
-
--- find offsets of multiple-spaces 
-local function chunk_boundaries(input)
-  input.bounds = {}
-  local last = 1
-  while last do
-    _, last = input.line:find('%s%s+', last)
-    if last then input.bounds[last] = true end
-  end
-end
-
-
--- copy bounds to neighbors if they match a space,
--- modifies the input.
---
--- This has some issues i.e.
--- do some |stuff
---    if a |then b
---         |else c
--- will align `stuff` as well as `then` and `else`. we don't care about syntax!
--- use additional space to unalign things, as spaces will be stripped after alignment.
--- 
--- TODO: there could be a safe mode aligning only double-spaced?
-local function expand_chunks(inputs)
-  local function expand(bound, input)
-    if not input.bounds[bound] and input.line:sub(bound, bound) == ' ' then
-      input.bounds[bound] = true
-      return false
-    else
-      return true
+%    \end{macrocode}
+% There are two tab kinds at the moment: explicit, following two spaces,
+% and implicit, neighboring another tab, following one space.
+%    \begin{macrocode}
+local pattern_explicit = '%s%s+'
+local pattern_implicit = '%s.'
+local kind_explicit, kind_implicit = 0, 1
+%    \end{macrocode}
+% Find explicit alignment by marking offsets where two spaces follow nonspaces.
+% Tabs store their offset and a (for now) unique name. It is in a subtable to
+% allow for multiple tabs to point at the same name for |local| alignment.
+% |line.tabs| is a table to allow easy checking if a tab exists in a line.
+%    \begin{macrocode}
+local function find_explicit_tabs(lines)
+  local tabid = 1
+  for _, line in ipairs(lines) do
+    line.tabs = {}
+    local last = 1
+    while last do
+      _, last = line.content:find(pattern_explicit, last)
+      if last then
+        line.tabs[last] = {
+          kind = kind_explicit,
+          offset = last,
+          name = {id = tabid, dep = {}},
+        }
+        tabid = tabid + 1
+      end
     end
   end
-  for i = 1, #inputs do
-    for bound, _ in next, inputs[i].bounds do
-      -- extend downwards, align to space-word,
-      -- i.e. extend & to ! here:
-      -- case f of Just x   &-> foo
-      --           Nothing  !-> baz
-      -- or cut through space-space,
-      -- if everything to the left is space as well,
-      -- i.e. extend & to ! but not ? here:
-      -- case f of Just x  &-> do foo
-      --                   !      bar
-      --           _       ?   -> baz
-      for j = i + 1, #inputs do
-        local p = inputs[j]
-        if p.bounds[bound] then break end
-        if p.line:sub(bound, bound) ~= ' ' then break end
-        if p.line:sub(bound + 1, bound + 1) ~= ' ' then -- space-word
-          p.bounds[bound] = true
-        elseif p.line:sub(1, bound):strip():len() == 0 then -- space-space
-          p.bounds[bound] = true
-        else break end
-      end
-      -- extend upwards, align to space-word,
-      -- and space-space IF the alignment ends with space-word
-      -- i.e. extend & to ! and % here:
-      -- case f of %Just x -> do foo
-      --           !             bar
-      --           &Nothing -> baz
-      -- extend & to ! but not to ? here because % is not space-word.
-      -- do somes%tuff
-      --    m    ?  k
-      --    if a !then b
-      --         &else c
-      local collect = {}
-      for j = i - 1, 1, -1 do
-        local p = inputs[j]
-        if p.bounds[bound] then break end
-        if p.line:sub(bound, bound) ~= ' ' then break end
-        if p.line:sub(bound + 1, bound + 1) ~= ' ' then -- space-word
-          p.bounds[bound] = true
-          -- set space-space collected until here:
-          for k = 1, #collect do
-            inputs[collect[k]].bounds[bound] = true
+end
+%    \end{macrocode}
+% Expand tabs to non-explicitly aligned neighbor lines. Iterates upwards
+% and downwards from the current line, copying the source tag's name to
+% matching targets, joining them. This is important for |local| alignment.
+%    \begin{macrocode}
+local function find_implicit_tabs(lines)
+  if not (opts.implicitafter or opts.implicitbefore) then return end
+  for i, line in ipairs(lines) do
+    -- prepare (reversed) index lists
+    local after = {}
+    if opts.implicitafter then
+      for j = i + 1, #lines do table.insert(after, j) end
+    end
+    local before = {}
+    if opts.implicitbefore then
+      for j = i - 1, 1, -1 do table.insert(before, j) end
+    end
+    for _, tab in pairs(line.tabs) do
+      local function expand(idxs)
+        for _, j in ipairs(idxs) do
+          local p = lines[j]
+          local reg = p.content:sub(tab.offset, tab.offset + 1)
+          if reg:match(pattern_implicit) == reg then
+            p.tabs[tab.offset] = {
+              kind = kind_implicit,
+              name = tab.name,
+              offset = tab.offset,
+            }
+          else
+            break
           end
-          collect = {}
-        elseif p.line:sub(1, bound):strip():len() == 0 then -- space-space
-          table.insert(collect, j)
-        else break end
+        end
+      end
+      expand(after)
+      expand(before)
+    end
+  end
+end
+%    \end{macrocode}
+% Convert the |line.tabs| table into a list of tab objects sorted by offset.
+%    \begin{macrocode}
+local function tabs_list(lines)
+  for _, line in ipairs(lines) do
+    local offsets = table.keys(line.tabs)
+    table.sort(offsets)
+    local linear_tabs = {}
+    for _, offset in ipairs(offsets) do
+      table.insert(linear_tabs, line.tabs[offset])
+    end
+    line.tabs = linear_tabs
+  end
+end
+%    \end{macrocode}
+% For |global| alignemt, finding the final names is easy: it's the tab's offset.
+%    \begin{macrocode}
+local function rename_global(lines)
+  for _, line in ipairs(lines) do
+    for _, tab in ipairs(line.tabs) do
+      tab.name.id = tab.offset
+    end
+  end
+end
+%    \end{macrocode}
+% For |local| alignment, it's harder because we allow for quite complex layouts
+% and \textsf{autotabbing} requires tab IDs to be sorted in each line to avoid
+% impossible configurations.
+% So we first build the DAG of tab dependencies: each tab is dependent on those
+% to its left as these must have smaller IDs.
+% Then we perform a depth-first search and assign new names in post-order,
+% topologically sorting the tabs. We start with number 2 because 1 is used
+% for the |beforeline| hook.
+%    \begin{macrocode}
+local function rename_local(lines)
+  local rightmost = {name = {dep = {}}}
+  -- tab dependency DAG.
+  for _, line in ipairs(lines) do
+    for i = 1, #line.tabs do
+      local left = line.tabs[i].name
+      local right = (line.tabs[i + 1] or rightmost).name
+      right.dep[left.id] = left
+    end
+  end
+  local nextname = 2
+  -- depth-first search, assign names
+  local function visit(parent)
+    for _, child in pairs(parent.dep or {}) do
+      if not child.visited then
+        visit(child)
+        child.visited = true
+        child.id = nextname
+        nextname = nextname + 1
       end
     end
   end
+  visit(rightmost.name)
 end
-
-
--- break the line strings on the bounds,
--- return list of lists of chunks for each line.
-local function break_chunks(inputs)
-  out = {}
-  for i = 1, #inputs do
-    local input = inputs[i]
-    local idxs = table.keys(input.bounds)
-    table.sort(idxs)
-    table.insert(idxs, 1, 0)
-    table.insert(idxs, input.line:len())
-    local chunks = {}
-    for j = 1, #idxs - 1 do
-      chunks[j] = input.line:sub(idxs[j] + 1, idxs[j + 1])
-    end
-    out[i] = chunks
-    if debug_show_chunks then
-      texio.write_nl(string.format('chunks: %s\n', table.concat(chunks, '&')))
-    end
-  end
-  return out
-end
-
-
--- call fun with groups as determinded by key function
-local function group_by(list, key, fun)
-  if list and #list > 0 then
-    local group = {list[1]}
-    local current = key(list[1])
-    for i = 2, #list do
-      local k = key(list[i])
-      if k == current then
-        table.insert(group, list[i])
-      else
-        fun(current, group)
-        current = k
-        group = {list[i]}
-      end
-    end
-    fun(current, group)
-  end
-end
-
-
--- call fun with a new list of items when the predicate returns true
-local function split_before(list, pred, fun)
-  if list and #list > 0 then
-    local row = {list[1]}
-    for i = 2, #list do
-      if pred(list[i]) then
-        fun(row)
-        row = {list[i]}
-      else
-        table.insert(row, list[i])
-      end
-    end
-    fun(row)
-  end
-end
-
-
--- if the table only contains 1 cell, unwrap
-local function unwrap_table(t)
-  if t and #t == 1 and #t[1] == 1 then
-    return t[1][1]
+%    \end{macrocode}
+% Write one chunk, either calling the |indent| code if set, or the |\verb|-like
+% command which shows the chunk. We try a few different delimiters searching
+% for one not contained in the chunk.
+%    \begin{macrocode}
+local function output_chunk(str)
+  if opts.indent and str:strip():len() == 0 then
+    return '{\\autoverbalignindent}'
   else
-    return t
-  end
-end
-
-
--- convert the chunk list into a tree of chunks
-local function make_tree(inputs)
-  -- group into a table.
-  local out_table = {}    
-  group_by(inputs, function(i) return i[1]:len() end,
-    function(_, group)
-      local group_table = {}
-      -- break into runs of rows where all but the first leftmost chunks
-      -- are whitespace, i.e. that we can align.
-      split_before(group, function(g) return g[1]:strip():len() > 0 end,
-        function(rows)
-          if #rows == 1 then -- single row.
-            table.insert(group_table, rows[1])
-          else -- multiple rows, put tail chunks in sub-table
-            local left = rows[1][1]
-            -- others are empty (and same length), remove and recurse
-            for i = 1, #rows do table.remove(rows[i], 1) end
-            table.insert(group_table, {left, make_tree(rows)})
-          end
-        end)
-      -- each group is a row a table containing the lines.
-      table.insert(out_table, {unwrap_table(group_table)})
-    end)
-  return unwrap_table(out_table)
-end
-
-
--- pretty print the tree into a string for debugging
-local function dump_tree(rows, _indent)
-  local indent = _indent or ''
-  if type(rows) == "string" then
-    return string.format('%s%q\n', indent, rows)
-  else
-    local s = ''
-    local width = 1
-    local indent2 = indent .. '  '
-    local indent3 = indent2 .. '  '
-    for i = 1, #rows do
-      local row = rows[i]
-      if #row > width then width = #row end
-      local s_row = ''
-      for j = 1, #row do
-        s_row = s_row .. dump_tree(row[j], indent3)
+    local delims='!|@$&-+=_0123456789'
+    local ch = nil
+    for i = 1, #delims do
+      local de = delims:sub(i,i)
+      if not str:find(de, 1, true) then
+        ch = de
+        break
       end
-      s = s .. string.format('%srow{\n%s%s}\n', indent2, s_row, indent2)
     end
-    s = string.format('%stable(%d){\n%s%s}\n', indent, width, s, indent)
+    if not ch then
+      err(string.format('no delimiter found for chunk %q', str))
+    end
+    local s = '{\\autoverbalignbeforechunk'
+    s = s .. string.format('\\autoverbalignchunk%s%s%s', ch, str, ch)
+    s = s .. '\\autoverbalignafterchunk}'
     return s
   end
 end
-
-
-
-local lpeg = require('lpeg')
-local P, R, S, C, Cc, Ct = lpeg.P, lpeg.R, lpeg.S, lpeg.C, lpeg.Cc, lpeg.Ct
-local function token(id, patt) return Ct(Cc(id) * C(patt)) end
-
-local idsafe = R('AZ', 'az')
-
-local ident_term = token('\\haskellIdentifier{%s}', R('az') * idsafe ^ 0)
-
-local ident_type = token('\\haskellType{%s}', R('AZ') * idsafe ^ 0)
-
-local haskell_keywords = P 'as' + P 'case' + P 'of' + P 'class' + P 'data' +
-                         P 'family' + P 'default' + P 'deriving' + P 'do' +
-                         P 'forall' + P 'foreign' + P 'hiding' + P 'if' +
-                         P 'then' + P 'else' + P 'import' + P 'infix' +
-                         P 'infixl' + P 'infixr' + P 'instance' + P 'let' +
-                         P 'in' + P 'mdo' + P 'module' + P 'newtype' +
-                         P 'proc' + P 'qualified' + P 'rec' + P 'type' +
-                         P 'where'
-
-local keyword = token('\\haskellKeyword{%s}', haskell_keywords * -idsafe)
-
-local simple_string = token('\\verb|%s|', P '"' * (1 - P '"') ^ 0 * '"')
-
-local whitespace = token('%s', S('\r\n\f\t ')^1)
-
-local operators = token('$\\lambda$', P '\\') +
-                  token('{\\haskellFmap}', P '<$>') +
-                  token('{\\haskellSeq}', P '<*>') +
-                  token('{\\haskellDollar}', P '$') +
-                  token('{\\haskellPipe}', P '|') +
-                  token('{\\haskellBind}', P '>>=') +
-                  token('$\\rightarrow$', P '->') +
-                  token('$\\leftarrow$', P '<-') +
-                  token('$\\Rightarrow$', P '=>') +
-                  token('$>$', P '>') +
-                  token('$<$', P '<') +
-                  token(' $\\circ$ ', whitespace * P '.' * whitespace)
-
-local escape = token('\\%s', S '{}&#^_~%')
-local any_token = operators + whitespace + keyword +
-                  ident_type + ident_term + simple_string +
-                  escape + token('%s', 1)
-
-local table_of_tokens = Ct(any_token ^ 0)
-
-local function haskellToLatex(input)
-  local tokens = lpeg.match(table_of_tokens, input)
-  local output = {}
-  for n = 1, #tokens do
-    local t = tokens[n][1]
-    local s = tokens[n][2]
-    output[n] = string.format(t, s)
-  end
-  return table.concat(output)
-end
-
-
-local function verbatimize(str)
-  if use_own_highlighter then
-    return haskellToLatex(str)
-  else
-    return string.format('{\\lstinline@%s@}', str)
-  end
-end
-
-
--- pretty print the tree to latex
-local function latex_tree(rows, maybe_indent)
-  if type(rows) == "string" then
-    local cell = rows:strip()
-    if maybe_indent and cell:len() == 0 then
-      local indent_width = '1em'
-      local cmd = '{\\hbox to %s{}}'
-      if debug_indent then cmd = '\\rule{%s}{3pt}' end
-      return string.format(cmd, indent_width)
-    else
-      return verbatimize(cell)
+%    \end{macrocode}
+% Output the entire content. Delimit lines by |\\|,
+% If set call the |beforeline| code and tab, cut out the chunks and output
+% them, using the named tabs. Finally a high tab and the |afterline| code.
+%    \begin{macrocode}
+local function output(lines)
+  local s = '\\begin{autotabbing}'
+  for i, line in ipairs(lines) do
+    if i ~= 1 then
+      s = s .. '\\\\'
     end
-  else
-    local width = 1
-    local s_rows = {}
-    for i = 1, #rows do
-      local row = rows[i]
-      if #row > width then width = #row end
-      local s_row = {}
-      for j = 1, #row do
-        s_row[j] = latex_tree(row[j], j == 1 and #rows == 1)
-      end
-      s_rows[i] = table.concat(s_row, '&')
+    if opts.beforeline then
+      s = s .. '\\autoverbalignbeforeline&[1]'
     end
-    local line = '@{ }'
-    if debug_table_line then line = '@{ }|@{}' end
-    return string.format(
-      '\\begin{tabular}[t]{@{}%s@{}}%s\\end{tabular}',
-      string.rep('l', width, line),
-      table.concat(s_rows, '\\\\'))
+    -- first (and possible last if no tab on line)
+    local last = {offset = nil}
+    s = s .. output_chunk(line.content:sub(1, (line.tabs[1] or last).offset))
+
+    for i, tab in ipairs(line.tabs) do
+      s = s .. string.format('\\autoverbaligntab{%d}{%d}',
+          tab.name.id, tab.kind)
+      local left = tab.offset + 1
+      local right = (line.tabs[i + 1] or last).offset
+      local chunk = line.content:sub(left, right)
+      s = s .. output_chunk(chunk)
+    end
+    if opts.afterline then
+      s = s .. '&[999]\\autoverbalignafterline'
+    end
   end
+  s = s .. '\\end{autotabbing}'
+  return s
 end
-
-
--- called from \begin{code}
-function begin_aligned_code(envname)
-  environment_name = envname
-  luatexbase.add_to_callback('process_input_buffer', readbuf, 'readbuf')
-end
-
-
--- called from \end{code}
-function end_aligned_code()
-  luatexbase.remove_from_callback('process_input_buffer', 'readbuf')
-  for i = 1, #code_lines do
-    chunk_boundaries(code_lines[i])
+%    \end{macrocode}
+% Do all of the above:
+%    \begin{macrocode}
+function autoverbalign.process(_opts)
+  opts = _opts
+  local lines = autoverbalign.lines
+  find_explicit_tabs(lines)
+  find_implicit_tabs(lines)
+  tabs_list(lines)
+  if opts.global then
+    rename_global(lines)
+  else
+    rename_local(lines)
   end
-  expand_chunks(code_lines)
-  local chunks = break_chunks(code_lines)
-  local t = make_tree(chunks)
-  if debug_show_tree then 
-    texio.write_nl(dump_tree(t, 'tree: '))
-  end
-  
-  --table.print(t)
-  --print(dump_tree(t))
-  tex.print(latex_tree(t))
-  code_lines = {}
+  tex.print(output(lines))
 end
 %</lua>
 %    \end{macrocode}
