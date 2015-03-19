@@ -145,7 +145,6 @@ is required but inserting |&|s would be annoying.
 \section{Usage}
 
 The package is loaded as |\usepackage|\oarg{kvargs}|{autoverbalign}|.
-It inherits document class options like |draft|.
 
 \DescribeMacro{\autoverbalignsetup}
 In the document options can also be set using |\autoverbalignsetup|\marg{kvargs}.
@@ -200,10 +199,11 @@ do something
 
 \subsection{Alignment}
 
-\autoverbalignsetup{draft,chunk=\verb*}
+\autotabbingsetup{draft}
+\autoverbalignsetup{chunk=\verb*}
 The environment interprets \emph{two} or more spaces before a nonspace as an
 explicit tabstop, and attempts to group and align chunks of neighboring text
-space at the same column (here marked red), which we call \emph{explicit tabs}
+space at the same column, which we call \emph{explicit tabs}
 
 \bigskip
 \begin{dconsume}
@@ -220,7 +220,7 @@ l l l  l l l
 
 \DescribeKey{implicitbefore}
 \DescribeKey{implicitafter}
-There is a heuristic for \emph{implicit tabs} (here marked blue) too.
+There is a heuristic for \emph{implicit tabs} too.
 Starting from an explicit tab we search for spaces in the same column in
 neighboring lines, stopping when hitting a wall.
 This can be toggled with using |implicitbefore=|\meta{bool}
@@ -253,7 +253,8 @@ nil after
 \hfill
 \bigskip
 
-\autoverbalignsetup{final, chunk=\verb*}
+\autotabbingsetup{final}
+\autoverbalignsetup{chunk=\verb*}
 \DescribeKey{indent}
 By default we replace chunks consisting only of spaces with |\quad|.
 You can set |indent=|\meta{code} instead, or set it to
@@ -272,8 +273,6 @@ end
 \drun{indent=\myindent}%
 \hfill
 \drun{indent=}%
-\hfill
-\drun{indent=, chunk=\lstinline}%
 \hfill
 \bigskip
 
@@ -296,11 +295,11 @@ beg  sub
   end
 \end{dconsume}
 \hfill
-\drunX{indent=, draft}%
+{\autotabbingsetup{draft}\drunX{indent=,}}%
 \hfill
 \drunX{indent=\myindent, chunk=\lstinline}%
 \hfill
-\drunX{implicitbefore=false, implicitafter=false, indent=, draft}%
+{\autotabbingsetup{draft}\drunX{implicitbefore=false, implicitafter=false, indent=}}%
 \hfill
 \drunX{implicitbefore=false, implicitafter=false, chunk=\lstinline, indent=\myindent}%
 \hfill
@@ -430,8 +429,6 @@ afterchunk={)}
 \DeclareBoolOption[true]{implicitafter}
 \DeclareBoolOption[true]{global}
 \DeclareComplementaryOption{local}{global}
-\DeclareBoolOption{draft}
-\DeclareComplementaryOption{final}{draft}
 \DeclareStringOption{beforeblock}
 \DeclareStringOption{afterblock}
 \DeclareStringOption{beforeline}
@@ -519,30 +516,9 @@ afterchunk={)}
     \endautoverbalign%
   }
 }
-%    \end{macrocode}
-% \end{macro}
-% \begin{macro}{\autoverbaligntab}
-% Create a named tabstop (first arg), of a certain type (second arg),
-% this is only used to display a red or blue bar in |draft| mode.
-%    \begin{macrocode}
-\newcommand*{\autoverbaligntab}[2]{%
-  \autotabbing@cell@next[#1]%
-  \ifautoverbaligndraft%
-    \raisebox{0pt}[0pt][0pt]{\makebox[0pt][r]{%
-      \ifcase #2%explicit
-        \color{red}%
-      \or%implicit
-        \color{blue}%
-      \fi%
-      \rule[-.3\baselineskip]{1pt}{\baselineskip}%
-      \hspace{0.2em}%
-    }}%
-  \fi%
-}
 %</package>
 %    \end{macrocode}
 % \end{macro}
-%
 % The Lua portion of the package.
 %    \begin{macrocode}
 %<*lua>
@@ -566,7 +542,6 @@ end
 %    \begin{macrocode}
 local pattern_explicit = '%s%s+'
 local pattern_implicit = '%s.'
-local kind_explicit, kind_implicit = 0, 1
 %    \end{macrocode}
 % Find explicit alignment by marking offsets where two spaces follow nonspaces.
 % Tabs store their offset and a (for now) unique name. It is in a subtable to
@@ -582,9 +557,9 @@ local function find_explicit_tabs(lines)
       _, last = line.content:find(pattern_explicit, last)
       if last then
         line.tabs[last] = {
-          kind = kind_explicit,
           offset = last,
-          name = {id = tabid, dep = {}},
+          name = tabid,
+          dep = {}
         }
         tabid = tabid + 1
       end
@@ -593,7 +568,7 @@ local function find_explicit_tabs(lines)
 end
 %    \end{macrocode}
 % Expand tabs to non-explicitly aligned neighbor lines. Iterates upwards
-% and downwards from the current line, copying the source tag's name to
+% and downwards from the current line, copying the source tag to
 % matching targets, joining them. This is important for |local| alignment.
 %    \begin{macrocode}
 local function find_implicit_tabs(lines)
@@ -614,11 +589,7 @@ local function find_implicit_tabs(lines)
           local p = lines[j]
           local reg = p.content:sub(tab.offset, tab.offset + 1)
           if reg:match(pattern_implicit) == reg then
-            p.tabs[tab.offset] = {
-              kind = kind_implicit,
-              name = tab.name,
-              offset = tab.offset,
-            }
+            p.tabs[tab.offset] = tab
           else
             break
           end
@@ -649,7 +620,7 @@ end
 local function rename_global(lines)
   for _, line in ipairs(lines) do
     for _, tab in ipairs(line.tabs) do
-      tab.name.id = tab.offset
+      tab.name = tab.offset
     end
   end
 end
@@ -664,13 +635,12 @@ end
 % for the |beforeline| hook.
 %    \begin{macrocode}
 local function rename_local(lines)
-  local rightmost = {name = {dep = {}}}
+  local root = {dep = {}}
   -- tab dependency DAG.
   for _, line in ipairs(lines) do
-    for i = 1, #line.tabs do
-      local left = line.tabs[i].name
-      local right = (line.tabs[i + 1] or rightmost).name
-      right.dep[left.id] = left
+    for i, tab in pairs(line.tabs) do
+      local parent = line.tabs[i + 1] or root
+      parent.dep[tab.name] = tab
     end
   end
   local nextname = 2
@@ -680,21 +650,24 @@ local function rename_local(lines)
       if not child.visited then
         visit(child)
         child.visited = true
-        child.id = nextname
+        child.name = nextname
         nextname = nextname + 1
       end
     end
   end
-  visit(rightmost.name)
+  visit(root)
 end
 %    \end{macrocode}
 % Write one chunk, either calling the |indent| code if set, or the |\verb|-like
 % command which shows the chunk. We try a few different delimiters searching
 % for one not contained in the chunk.
 %    \begin{macrocode}
-local function output_chunk(str)
+local function output_chunk(line, i)
+  local left = (line.tabs[i] or {offset = 0}).offset + 1
+  local right = (line.tabs[i + 1] or {}).offset
+  local str = line.content:sub(left, right)
   if opts.indent and str:strip():len() == 0 then
-    return '{\\autoverbalignindent}'
+    tex.sprint('{\\autoverbalignindent}')
   else
     local delims='!|@$&-+=_0123456789'
     local ch = nil
@@ -708,10 +681,8 @@ local function output_chunk(str)
     if not ch then
       err(string.format('no delimiter found for chunk %q', str))
     end
-    local s = '{\\autoverbalignbeforechunk'
-    s = s .. string.format('\\autoverbalignchunk%s%s%s', ch, str, ch)
-    s = s .. '\\autoverbalignafterchunk}'
-    return s
+    tex.sprint('{\\autoverbalignbeforechunk\\autoverbalignchunk',
+               ch, str, ch, '\\autoverbalignafterchunk}')
   end
 end
 %    \end{macrocode}
@@ -720,32 +691,24 @@ end
 % them, using the named tabs. Finally a high tab and the |afterline| code.
 %    \begin{macrocode}
 local function output(lines)
-  local s = '\\begin{autotabbing}'
+  tex.sprint('\\begin{autotabbing}')
   for i, line in ipairs(lines) do
     if i ~= 1 then
-      s = s .. '\\\\'
+      tex.sprint('\\\\')
     end
     if opts.beforeline then
-      s = s .. '\\autoverbalignbeforeline&[1]'
+      tex.sprint('\\autoverbalignbeforeline&[1]')
     end
-    -- first (and possible last if no tab on line)
-    local last = {offset = nil}
-    s = s .. output_chunk(line.content:sub(1, (line.tabs[1] or last).offset))
-
+    output_chunk(line, 0)
     for i, tab in ipairs(line.tabs) do
-      s = s .. string.format('\\autoverbaligntab{%d}{%d}',
-          tab.name.id, tab.kind)
-      local left = tab.offset + 1
-      local right = (line.tabs[i + 1] or last).offset
-      local chunk = line.content:sub(left, right)
-      s = s .. output_chunk(chunk)
+      tex.sprint(string.format('&[%d]', tab.name))
+      output_chunk(line, i)
     end
     if opts.afterline then
-      s = s .. '&[999]\\autoverbalignafterline'
+      tex.sprint('&[999]\\autoverbalignafterline')
     end
   end
-  s = s .. '\\end{autotabbing}'
-  return s
+  tex.sprint('\\end{autotabbing}')
 end
 %    \end{macrocode}
 % Do all of the above:
@@ -761,7 +724,7 @@ function autoverbalign.process(_opts)
   else
     rename_local(lines)
   end
-  tex.print(output(lines))
+  output(lines)
 end
 %</lua>
 %    \end{macrocode}
