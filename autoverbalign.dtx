@@ -32,13 +32,11 @@
 \usepackage{xcolor}
 \usepackage{showexpl}
 \usepackage{listings}
-%\usepackage{microtype}
 %\usepackage{lua-visual-debug}
 \EnableCrossrefs
 \CodelineIndex
 \RecordChanges
 
-%\usepackage[margin=1cm]{geometry}
 
 
 \lstdefinelanguage{Haskell}{
@@ -46,10 +44,10 @@
   morecomment=[l]{--},
   morecomment=[s]{\{-}{-\}},
   literate=
-    {->}{$\rightarrow\;$}2
-    {<-}{$\leftarrow\;$}2
-    {:}{$\;:\;$}1
-    {::}{$::\;$}2
+    {->}{$\rightarrow$}2
+    {<-}{$\leftarrow$}2
+    {:}{$\;:$}1
+    {::}{$::$}2
     {[]}{$[\,]$}2
 }
 \lstset{
@@ -73,7 +71,13 @@
   }%
 }
 
-\newcommand{\DescribeKey}[1]{\DescribeEnv{#1}}
+\newcommand{\DescribeKey}{\DescribeEnv}
+\newenvironment{luafun}[1]{%
+  \begin{environment}{#1()}%
+}{%
+  \end{environment}%
+}
+
 
 \makeatletter
 \newenvironment{dconsume}{\autoverbalign@consume}{\endautoverbalign@consume}
@@ -81,19 +85,18 @@
 \newcommand{\drunW}[2]{%
   \vbox{%
     \autoverbalignsetup{#1}%
-    \hbox{\fbox{\vbox{\autoverbalign@process}}}%
+    \autoverbalign@process%
     #2%
   }%
 }
 \newcommand{\drunX}[1]{\drunW{#1}{}}
 
 \newcommand{\drunZ}[1]{%
-  \drunW{#1}{\par\vspace{5pt}\hbox{\strut}}}
+  \drunW{#1}{\par\hbox{\strut}}}
 
 \newcommand{\drun}[1]{%
   \drunW{#1}{%
-    \par\vspace{5pt}%
-    \hbox{\strut\scriptsize\texttt{\detokenize{#1}}}}}
+    \par\hbox{\strut\scriptsize\texttt{\detokenize{#1}}}}}
 \makeatother
 
 \begin{document}
@@ -127,16 +130,13 @@ f    _              []        = []                           -- end
 \hfill
 {\small\drunX{indent=,chunk=\verb}}
 \hfill
-\medskip
 
 ...and keeps this even when typesetting using a proportional font,
 here with additional processing through the \textsf{listings} package:
 
-\medskip
 \hfill
 {\small\drunX{chunk=\lstinline}}
 \hfill
-\medskip
 
 Originally written for pretty-printing Haskell-like code without an external
 preprocessor, it can be useful for any occasion where no cell-wise formatting
@@ -172,6 +172,21 @@ You can define custom versions using
   |\end|\marg{name}
 }\medskip
 
+\DescribeMacro{\newautoverbalign*}
+Using
+|\newautoverbalign*|\oarg{kvargs}\marg{name}
+will create an environment that does not take further optional arguments.
+Will never eat spaces at the start.
+Use this to define e.g. literate Haskell's |code| environment, where
+|[]| is not an option.
+
+\medskip\qquad\vbox{
+  |\begin|\marg{name}\\
+  \meta{content}\\
+  |\end|\marg{name}
+}\medskip
+
+
 
 \DescribeKey{chunk}
 The environment acts like (and is based on) the |verbatim| environment from
@@ -183,7 +198,7 @@ The character is chosen automatically as one not contained in the content, and
 never |{|. By default we use |\verb|, but it is recommended to set a custom
 command using |chunk=|\meta{code} for proportional typesetting.
 
-\bigskip
+\medskip
 \begin{dconsume}
 do something
    return 1
@@ -195,7 +210,7 @@ do something
 \hfill
 \drun{chunk=\collectverb{\rmfamily}}%
 \hfill
-\bigskip
+\medskip
 
 \subsection{Alignment}
 
@@ -205,7 +220,7 @@ The environment interprets \emph{two} or more spaces before a nonspace as an
 explicit tabstop, and attempts to group and align chunks of neighboring text
 space at the same column, which we call \emph{explicit tabs}
 
-\bigskip
+\medskip
 \begin{dconsume}
 m m m  m m m
 n n n  n n n
@@ -216,7 +231,7 @@ l l l  l l l
 \hfill
 \drun{chunk=\lstinline}%
 \hfill
-\bigskip
+\medskip
 
 \DescribeKey{implicitbefore}
 \DescribeKey{implicitafter}
@@ -227,7 +242,7 @@ This can be toggled with using |implicitbefore=|\meta{bool}
 and |implicitafter=|\meta{bool}.
 They are active by default.
 
-\bigskip
+\medskip
 \begin{dconsume}
 nil before
 unaligned
@@ -251,7 +266,7 @@ nil after
 \hfill
 \drun{implicitafter=true}%
 \hfill
-\bigskip
+\medskip
 
 \autotabbingsetup{final}
 \autoverbalignsetup{chunk=\verb*}
@@ -261,7 +276,7 @@ You can set |indent=|\meta{code} instead, or set it to
 empty |indent=,| to disable the replacement entirely.
 \newcommand{\myindent}{{\color{red}$\rightarrow\,$}}
 
-\bigskip
+\medskip
 \begin{dconsume}
 begin
        print
@@ -274,7 +289,7 @@ end
 \hfill
 \drun{indent=}%
 \hfill
-\bigskip
+\medskip
 
 In the example below, code is aligned
 explicitly after the |begin|, but the |end| is indented by four spaces.
@@ -283,7 +298,7 @@ on the same level as code appearing deeper, however this creates an ugly space
 between |beg sub|.
 Without implicit tabs the hierarchy is lost.
 
-\bigskip
+\medskip
 \begin{dconsume}
 beg  sub
      beg  foo
@@ -303,7 +318,38 @@ beg  sub
 \hfill
 \drunX{implicitbefore=false, implicitafter=false, chunk=\lstinline, indent=\myindent}%
 \hfill
-\bigskip
+\medskip
+
+\DescribeKey{strip}
+By default all spaces will be kept as-is for each chunk.
+Setting |strip| will remove all but the last space.
+This is useful when setting |\lstinline| as the chunk handler and using the
+|literate=| replacements. The first example below shows it discarding the
+space following each $\rightarrow$.
+The second and third use |\lstset{showspaces}|.
+The last ones use |\lstset{keepspaces}|, we see without |strip| there is now
+superfluous space; but using |strip| yields the desired result.
+
+{\autoverbalignsetup{chunk=\lstinline,indent=}
+\medskip
+\begin{dconsume}
+x -> y   -> z
+a -> b      c
+\end{dconsume}
+\hfill
+\drunW{strip=false}{\par\hbox{\strut\scriptsize default}}%
+\hfill
+\lstset{keepspaces, showspaces}
+\drun{strip=false}%
+\hfill
+\drun{strip=true}%
+\lstset{showspaces=false}
+\hfill
+\drun{strip=false}%
+\hfill
+\drun{strip=true}%
+\hfill
+\medskip}
 
 \DescribeKey{global}
 \DescribeKey{local}
@@ -314,7 +360,7 @@ For longer blocks, this may not be desired.
 Therefore |local| alignment only groups consecutive tabs in the same column
 under the same ID.
 
-\bigskip
+\medskip
 \begin{dconsume}
 f mmmmmm =       q
 f     l  = mmmmm q
@@ -335,7 +381,7 @@ g        =       q
 \hfill
 \drun{local}
 }\hfill
-\bigskip
+\medskip
 
 \subsection{Hooks}
 
@@ -349,11 +395,11 @@ in the same group.
 do some  code
    return
 \end{dconsume}
-\bigskip\hfill\drun{%
+\medskip\hfill\drun{%
 chunk=\lstinline,
 beforeblock=\lstset{language=Haskell},
 afterblock=\textsf{end code}
-}\hfill\bigskip
+}\hfill\medskip
 
 \DescribeKey{beforeline}
 \DescribeKey{afterline}
@@ -361,11 +407,10 @@ These are executed at the start and end of each line, delimited by a tab each.
 All lines are contained in the same group.
 
 \newcounter{myLC}
-\bigskip\hfill\drun{%
+\medskip\hfill\drun{%
 beforeline={\stepcounter{myLC}\Roman{myLC}},
 afterline={\arabic{myLC}}
-}\hfill\bigskip
-
+}\hfill\medskip
 
 
 \DescribeKey{beforechunk}
@@ -373,10 +418,10 @@ afterline={\arabic{myLC}}
 These are executed before and after each chunk, not including indents.
 They are contained in the same group as the content, one group per chunk.
 
-\bigskip\hfill\drun{%
+\medskip\hfill\drun{%
 beforechunk={(},
 afterchunk={)}
-}\hfill\bigskip
+}\hfill\medskip
 
 
 
@@ -425,6 +470,7 @@ afterchunk={)}
 \SetupKeyvalOptions{family=autoverbalign, prefix=autoverbalign}
 \DeclareStringOption[\verb]{chunk}
 \DeclareStringOption[\quad]{indent}
+\DeclareBoolOption[false]{strip}
 \DeclareBoolOption[true]{implicitbefore}
 \DeclareBoolOption[true]{implicitafter}
 \DeclareBoolOption[true]{global}
@@ -469,6 +515,7 @@ afterchunk={)}
     \autoverbalign@bool{implicitbefore},
     \autoverbalign@bool{implicitafter},
     \autoverbalign@isdef{indent},
+    \autoverbalign@bool{strip},
     \autoverbalign@isdef{beforeline},
     \autoverbalign@isdef{afterline},
   })}%
@@ -516,9 +563,28 @@ afterchunk={)}
     \endautoverbalign%
   }
 }
-%</package>
 %    \end{macrocode}
 % \end{macro}
+% \begin{macro}{\newautoverbalign*}
+% Create a new environment which first sets the options passed at creation
+% on every use, and does not take further options. Will never spaces at the
+% start of the first line.
+%    \begin{macrocode}
+\RequirePackage{suffix}
+\WithSuffix{\newcommand*}\newautoverbalign*[2][]{
+  \newenvironment{#2}{%
+    \autoverbalign[#1]%
+  }{%
+    \endautoverbalign%
+  }
+}
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</package>
+%    \end{macrocode}
+%
 % The Lua portion of the package.
 %    \begin{macrocode}
 %<*lua>
@@ -530,6 +596,8 @@ local opts
 %    \begin{macrocode}
 require('lualibs')
 %    \end{macrocode}
+%
+% \begin{luafun}{autoverbalign.line}
 % Receive a line from the register used by \textsf{verbatim}, store it in the table.
 %    \begin{macrocode}
 function autoverbalign.line()
@@ -537,12 +605,16 @@ function autoverbalign.line()
   table.insert(autoverbalign.lines, {content = line})
 end
 %    \end{macrocode}
+% \end{luafun}
+%
 % There are two tab kinds at the moment: explicit, following two spaces,
 % and implicit, neighboring another tab, following one space.
 %    \begin{macrocode}
 local pattern_explicit = '%s%s+'
 local pattern_implicit = '%s.'
 %    \end{macrocode}
+%
+% \begin{luafun}{find\_explicit\_tabs}
 % Find explicit alignment by marking offsets where two spaces follow nonspaces.
 % Tabs store their offset and a (for now) unique name. It is in a subtable to
 % allow for multiple tabs to point at the same name for |local| alignment.
@@ -567,6 +639,9 @@ local function find_explicit_tabs(lines)
   end
 end
 %    \end{macrocode}
+% \end{luafun}
+%
+% \begin{luafun}{find\_implicit\_tabs}
 % Expand tabs to non-explicitly aligned neighbor lines. Iterates upwards
 % and downwards from the current line, copying the source tag to
 % matching targets, joining them. This is important for |local| alignment.
@@ -601,6 +676,9 @@ local function find_implicit_tabs(lines)
   end
 end
 %    \end{macrocode}
+% \end{luafun}
+%
+% \begin{luafun}{tabs\_list}
 % Convert the |line.tabs| table into a list of tab objects sorted by offset.
 %    \begin{macrocode}
 local function tabs_list(lines)
@@ -615,6 +693,9 @@ local function tabs_list(lines)
   end
 end
 %    \end{macrocode}
+% \end{luafun}
+%
+% \begin{luafun}{rename\_global}
 % For |global| alignemt, finding the final names is easy: it's the tab's offset.
 %    \begin{macrocode}
 local function rename_global(lines)
@@ -625,6 +706,9 @@ local function rename_global(lines)
   end
 end
 %    \end{macrocode}
+% \end{luafun}
+%
+% \begin{luafun}{rename\_local}
 % For |local| alignment, it's harder because we allow for quite complex layouts
 % and \textsf{autotabbing} requires tab IDs to be sorted in each line to avoid
 % impossible configurations.
@@ -658,6 +742,9 @@ local function rename_local(lines)
   visit(root)
 end
 %    \end{macrocode}
+% \end{luafun}
+%
+% \begin{luafun}{output\_chunk}
 % Write one chunk, either calling the |indent| code if set, or the |\verb|-like
 % command which shows the chunk. We try a few different delimiters searching
 % for one not contained in the chunk.
@@ -669,6 +756,16 @@ local function output_chunk(line, i)
   if opts.indent and str:strip():len() == 0 then
     tex.sprint('{\\autoverbalignindent}')
   else
+    -- remove all but last space
+    if opts.strip then
+      local new = str:strip()
+      if str:match('%s$') then
+        str = new .. ' '
+      else
+        str = new
+      end
+    end
+    -- find delimiter
     local delims='!|@$&-+=_0123456789'
     local ch = nil
     for i = 1, #delims do
@@ -686,6 +783,9 @@ local function output_chunk(line, i)
   end
 end
 %    \end{macrocode}
+% \end{luafun}
+%
+% \begin{luafun}{output}
 % Output the entire content. Delimit lines by |\\|,
 % If set call the |beforeline| code and tab, cut out the chunks and output
 % them, using the named tabs. Finally a high tab and the |afterline| code.
@@ -711,6 +811,9 @@ local function output(lines)
   tex.sprint('\\end{autotabbing}')
 end
 %    \end{macrocode}
+% \end{luafun}
+%
+% \begin{luafun}{autoverbalign.process}
 % Do all of the above:
 %    \begin{macrocode}
 function autoverbalign.process(_opts)
@@ -728,6 +831,8 @@ function autoverbalign.process(_opts)
 end
 %</lua>
 %    \end{macrocode}
+% \end{luafun}
+%
 %
 %
 % \Finale
