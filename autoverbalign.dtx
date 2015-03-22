@@ -274,7 +274,7 @@ nil after
 By default we replace chunks consisting only of spaces with |\quad|.
 You can set |indent=|\meta{code} instead, or set it to
 empty |indent=,| to disable the replacement entirely.
-\newcommand{\myindent}{{\color{red}$\rightarrow\,$}}
+\newcommand{\myindent}{{\color{red}$\longrightarrow\,$}}
 
 \medskip
 \begin{dconsume}
@@ -293,30 +293,27 @@ end
 
 In the example below, code is aligned
 explicitly after the |begin|, but the |end| is indented by four spaces.
-We insert indentations into the second column to ensure the |end| is never
-on the same level as code appearing deeper, however this creates an ugly space
-between |beg sub|.
-Without implicit tabs the hierarchy is lost.
+We insert the indent command in the first all-whitespace chunk followed by a
+non-whitespaced chunk, if on the left of the tab we only find whitespace,
+in the example this applies to tab 2 and 7; but not 5 and 10 as these are aligned
+with the |begin| chunks, and indentation might add extra space.
 
 \medskip
 \begin{dconsume}
-beg  sub
-     beg  foo
-          bar
-       end
-     beg  baz
-          qux
-       end
-  end
+begin sub
+      begin foo
+            bar
+          end
+          end
+      begin baz
+            qux
+          end
+    end
 \end{dconsume}
 \hfill
 {\autotabbingsetup{draft}\drunX{indent=,}}%
 \hfill
-\drunX{indent=\myindent, chunk=\lstinline}%
-\hfill
-{\autotabbingsetup{draft}\drunX{implicitbefore=false, implicitafter=false, indent=}}%
-\hfill
-\drunX{implicitbefore=false, implicitafter=false, chunk=\lstinline, indent=\myindent}%
+\drunX{chunk=\lstinline,indent=\myindent}%
 \hfill
 \medskip
 
@@ -326,7 +323,7 @@ Setting |strip| will remove all but the last space.
 This is useful when setting |\lstinline| as the chunk handler and using the
 |literate=| replacements. The first example below shows it discarding the
 space following each $\rightarrow$.
-The second and third use |\lstset{showspaces}|.
+The second and third use |\lstset{showspaces}| to demonstrate the difference.
 The last ones use |\lstset{keepspaces}|, we see without |strip| there is now
 superfluous space; but using |strip| yields the desired result.
 
@@ -744,43 +741,98 @@ end
 %    \end{macrocode}
 % \end{luafun}
 %
+% \begin{luafun}{cut\_chunks}
+% Cut the lines into substrings for each chunk, the last one will not have a tab.
+%    \begin{macrocode}
+local function cut_chunks(lines)
+  for _, line in ipairs(lines) do
+    line.chunks = {}
+    for i = 1, #line.tabs + 1 do
+      local left = line.tabs[i - 1]
+      local right = line.tabs[i]
+      local left_i = (left or {offset=0}).offset + 1
+      local right_i = (right or {}).offset
+      local chunk = line.content:sub(left_i, right_i)
+      line.chunks[i] = {
+        content = chunk,
+        tab = right
+      }
+    end
+  end
+end
+%    \end{macrocode}
+% \end{luafun}
+%
+% \begin{luafun}{strip\_chunks}
+% Remove all spaces but the last from each chunk.
+%    \begin{macrocode}
+local function strip_chunks(lines)
+  for _, line in ipairs(lines) do
+    for _, chunk in ipairs(line.chunks) do
+      local s = chunk.content:strip()
+      if chunk.content:match('%s$') then
+        chunk.content = s .. ' '
+      else
+        chunk.content = s
+      end
+    end
+  end
+end
+%    \end{macrocode}
+% \end{luafun}
+%
+% \begin{luafun}{indent}
+% Delete a chunk's content if it is whitespace.
+% Mark tabs which contain non-whitespace; these will never get indentation
+% marks printed.
+%    \begin{macrocode}
+local function indent(lines)
+  -- first pass, delete all-whitespace content, mark aligned tabs
+  for _, line in ipairs(lines) do
+    for _, chunk in ipairs(line.chunks) do
+      if chunk.content:strip():len() == 0 then
+        chunk.content = nil
+      elseif chunk.tab then
+        chunk.tab.aligned = true
+      end
+    end
+  end
+  -- second pass, mark chunks needing indentation
+  for _, line in ipairs(lines) do
+    for i, chunk in ipairs(line.chunks) do
+      if not chunk.content and chunk.tab and not chunk.tab.aligned then
+        local next_chunk = line.chunks[i + 1]
+        if next_chunk and next_chunk.content then
+          chunk.indent = true
+          chunk.tab.aligned = true
+        end
+      end
+    end
+  end
+end
+%    \end{macrocode}
+% \end{luafun}
+%
 % \begin{luafun}{output\_chunk}
 % Write one chunk, either calling the |indent| code if set, or the |\verb|-like
 % command which shows the chunk. We try a few different delimiters searching
 % for one not contained in the chunk.
 %    \begin{macrocode}
-local function output_chunk(line, i)
-  local left = (line.tabs[i] or {offset = 0}).offset + 1
-  local right = (line.tabs[i + 1] or {}).offset
-  local str = line.content:sub(left, right)
-  if opts.indent and str:strip():len() == 0 then
-    tex.sprint('{\\autoverbalignindent}')
-  else
-    -- remove all but last space
-    if opts.strip then
-      local new = str:strip()
-      if str:match('%s$') then
-        str = new .. ' '
-      else
-        str = new
-      end
+local function print_verb(str)
+  local delims='!|@$&-+=_0123456789'
+  local ch = nil
+  for i = 1, #delims do
+    local de = delims:sub(i,i)
+    if not str:find(de, 1, true) then
+      ch = de
+      break
     end
-    -- find delimiter
-    local delims='!|@$&-+=_0123456789'
-    local ch = nil
-    for i = 1, #delims do
-      local de = delims:sub(i,i)
-      if not str:find(de, 1, true) then
-        ch = de
-        break
-      end
-    end
-    if not ch then
-      err(string.format('no delimiter found for chunk %q', str))
-    end
-    tex.sprint('{\\autoverbalignbeforechunk\\autoverbalignchunk',
-               ch, str, ch, '\\autoverbalignafterchunk}')
   end
+  if not ch then
+    err(string.format('no delimiter found for chunk %q', str))
+  end
+  tex.sprint('{\\autoverbalignbeforechunk\\autoverbalignchunk',
+             ch, str, ch, '\\autoverbalignafterchunk}')
 end
 %    \end{macrocode}
 % \end{luafun}
@@ -797,15 +849,22 @@ local function output(lines)
       tex.sprint('\\\\')
     end
     if opts.beforeline then
-      tex.sprint('\\autoverbalignbeforeline&[1]')
+      tex.sprint('{\\autoverbalignbeforeline}&[1]')
     end
-    output_chunk(line, 0)
-    for i, tab in ipairs(line.tabs) do
-      tex.sprint(string.format('&[%d]', tab.name))
-      output_chunk(line, i)
+    for _, chunk in ipairs(line.chunks) do
+      -- output content
+      if chunk.content then
+        print_verb(chunk.content)
+      elseif chunk.indent then
+        tex.sprint('{\\autoverbalignindent}')
+      end
+      -- output tab
+      if chunk.tab then
+        tex.sprint(string.format('&[%d]', chunk.tab.name))
+      end
     end
     if opts.afterline then
-      tex.sprint('&[999]\\autoverbalignafterline')
+      tex.sprint('&[999]{\\autoverbalignafterline}')
     end
   end
   tex.sprint('\\end{autotabbing}')
@@ -827,6 +886,14 @@ function autoverbalign.process(_opts)
   else
     rename_local(lines)
   end
+  cut_chunks(lines)
+  if opts.strip then
+    strip_chunks(lines)
+  end
+  if opts.indent then
+    indent(lines)
+  end
+
   output(lines)
 end
 %</lua>
